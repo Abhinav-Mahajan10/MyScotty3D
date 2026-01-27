@@ -67,6 +67,14 @@ if (maek.OS === "windows") {
 		"-Isrc", "-Ideps"  //include directories
 	);
 }
+// } else if (maek.OS === 'macos') {
+// 	maek.options.CPPFlags.push(
+// 		"-O2", //optimize
+// 		`-I${NEST_LIBS}/SDL2/include/SDL2`, `-D_THREAD_SAFE`, //SDL include flags
+// 		"-Isrc", "-Ideps",  //include directories
+// 		"-Wno-nontrivial-memcall"  //disable warning for ImGui memset/memcpy usage
+// 	);
+// }
 
 //call rules on the maek object to specify tasks.
 // rules generally look like:
@@ -276,6 +284,7 @@ if (maek.OS === 'linux') {
 	];
 } else if (maek.OS === 'windows') {
 	Scotty3D_options.LINKLibs = [...maek.options.LINKLibs,
+		"-lc++",  // explicitly link C++ standard library
 		`/LIBPATH:${NEST_LIBS}/SDL2/lib`, `SDL2main.lib`, `SDL2.lib`, `OpenGL32.lib`, `Shell32.lib`, //needed for SDL
 		"Ole32.lib", "Shcore.lib", //needed for NFD
 		"src/platform/icon.res",
@@ -364,9 +373,17 @@ function init_maek() {
 	} else if (maek.OS === 'linux') {
 		DEFAULT_OPTIONS.CPP = ['g++', '-std=c++17', '-Wall', '-Werror', '-g'];
 		DEFAULT_OPTIONS.LINK = ['g++', '-std=c++17', '-Wall', '-Werror', '-g'];
+	// } else if (maek.OS === 'macos') {
+	// 	DEFAULT_OPTIONS.CPP = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
+	// 	DEFAULT_OPTIONS.LINK = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
+	// }
+	// } else if (maek.OS === 'macos') {
+	// 	DEFAULT_OPTIONS.CPP = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g', '-stdlib=libc++'];
+	// 	DEFAULT_OPTIONS.LINK = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g', '-stdlib=libc++'];
+	// }
 	} else if (maek.OS === 'macos') {
-		DEFAULT_OPTIONS.CPP = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
-		DEFAULT_OPTIONS.LINK = ['clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
+		DEFAULT_OPTIONS.CPP = ['/usr/bin/clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
+		DEFAULT_OPTIONS.LINK = ['/usr/bin/clang++', '-std=c++17', '-Wall', '-Werror', '-g'];
 	}
 
 	//any settings here override 'DEFAULT_OPTIONS':

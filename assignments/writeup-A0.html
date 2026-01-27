@@ -1,49 +1,41 @@
 **Assignment 0 Report**
 
-AndrewID: XXXX
-
-(##) About this template
-
-* You can view your writeup by opening it in a browser - right click this file and open with your browser of choice.
-
-* Replace reference images with your own screenshots or renders when applicable.
-
-* Include descriptions of any encountered problems and the time you spent on each task.
+AndrewID: abhinavm
 
 (##) A0T1
 
 Step 1: Clone
-<div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step1-github-ref-1.png" alt="Github-CLI">
+<!-- <div class="twentytwenty-container">
+    <img src="A0-writeup/student/1.png" alt="Github-CLI">
 </div>
-or
+or -->
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step1-github-ref-2.png" alt="Github-Web">
+    <img src="A0-writeup/student/github.png" alt="Github-Web">
 </div>
 
 Step 2: General Setup
 
 Visual Studio:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-vs-ref.png" alt="Visual Studio">
+    <img src="A0-writeup/student/vscode.png" alt="Visual Studio">
 </div>
 
 Node:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-node-ref.png" alt="Node">
+    <img src="A0-writeup/student/node.png" alt="Node">
 </div>
 
 Nest-libs:
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step2-nest-libs-ref.png" alt="Nest-libs">
+    <img src="A0-writeup/student/nest-libs.png" alt="Nest-libs">
 </div>
 
 Step 3: Build and Run
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step3-GUI-ref.png" alt="GUI">
+    <img src="A0-writeup/student/GUI-ref.png" alt="GUI">
 </div>
 <div class="twentytwenty-container">
-    <img src="A0-writeup/reference/step3-tests-ref.png" alt="Run-tests">
+    <img src="A0-writeup/student/test-cases.png" alt="Run-tests">
 </div>
 
 (##) A0T2
@@ -53,14 +45,17 @@ Your completion of this task will be graded based on your `test.a0.task2.problem
 For each of the problems you solved in task 2, characterise the bug in your own words and explain one other scenario that may cause this 
 type of bug.
 
-Problem 1:
+Problem 1: Three typos/mistakes: used str instead of std::string, forgot a semicolon after printf, and typed std::cour instead of std::cout.
+Another scenario: forgetting to add std:: before vector when you don't have using namespace std;
 
-Problem 2:
+Problem 2: When dividing two integers, C++ truncates the result. I fixed it by casting to float first.
+Another scenario: mistake when calculating percentages, like int score = 85; int total = 100; float percentage = score / total * 100; gives 0 because 85/100 becomes 0
 
-Problem 3:
+Problem 3: .end() points one past the last element, so dereferencing it is undefined behavior. Fixed it by using .end() - 1
+Another scenario: Trying to access last variable with vec[vec.size()]
 
-Problem 4:
-
+Problem 4:The expression (vec1[i] == vec2[j]) == vec3[k] compares a boolean (true/false) with an integer, not checking if all three values match. I fixed it by chaining with && logical orperator.
+Another Scenario: Checking ranges like if (x > 0 == x < 10)
 
 (##) A0T3
 
@@ -70,9 +65,9 @@ You do not need any screenshots for this task. Your completion will be graded ba
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
 
-For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
+It was pretty easy so didn't need much help. Used Claude 4.5 Sonnet to help in setting up Scotty3D, I had multiple clang directories which was not allowing me to run the maekfile. Also, in setting up the debugger, it suggested me to use lldb as gdb (my previous go to) was not working for some reason. 
 
-What was it good at? What was it bad at?
+It was great at it. I was able to do the assignment top-to-bottom in 3 hours :)
 
 (##) Feedback
 
