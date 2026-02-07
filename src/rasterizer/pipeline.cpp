@@ -142,6 +142,9 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 			// "Less" means the depth test passes when the new fragment has depth less than the stored depth.
 			// A1T4: Depth_Less
 			// TODO: implement depth test! We want to only emit fragments that have a depth less than the stored depth, hence "Depth_Less".
+			if (f.fb_position.z >= fb_depth) {
+				continue;
+			}
 		} else {
 			static_assert((flags & PipelineMask_Depth) <= Pipeline_Depth_Always, "Unknown depth test flag.");
 		}
@@ -164,12 +167,12 @@ void Pipeline<primitive_type, Program, flags>::run(std::vector<Vertex> const& ve
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Add) {
 				// A1T4: Blend_Add
 				// TODO: framebuffer color should have fragment color multiplied by fragment opacity added to it.
-				fb_color = sf.color; //<-- replace this line
+				fb_color = sf.color + fb_color;
 			} else if constexpr ((flags & PipelineMask_Blend) == Pipeline_Blend_Over) {
 				// A1T4: Blend_Over
 				// TODO: set framebuffer color to the result of "over" blending (also called "alpha blending") the fragment color over the framebuffer color, using the fragment's opacity
 				// 		 You may assume that the framebuffer color has its alpha premultiplied already, and you just want to compute the resulting composite color
-				fb_color = sf.color; //<-- replace this line
+				fb_color = sf.color + fb_color * (1 - sf.opacity);
 			} else {
 				static_assert((flags & PipelineMask_Blend) <= Pipeline_Blend_Over, "Unknown blending flag.");
 			}
@@ -308,9 +311,88 @@ void Pipeline<p, P, flags>::clip_triangle(
 	std::function<void(ShadedVertex const&)> const& emit_vertex) {
 	// A1EC: clip_triangle
 	// TODO: correct code!
-	emit_vertex(va);
-	emit_vertex(vb);
-	emit_vertex(vc);
+
+	// Sutherland-Hodgman polygon clipping algo
+	std::vector<ShadedVertex> polygon = {va, vb, vc};
+	
+	struct Plane {
+		int coord;  
+		float sign;
+	};
+	
+	Plane planes[6] = {
+		{0, -1.0f},
+		{0,  1.0f},
+		{1, -1.0f},
+		{1,  1.0f},
+		{2, -1.0f},
+		{2,  1.0f}
+	};
+	
+	// Signed distance function
+	auto distance_to_plane = [](Vec4 const& pos, Plane const& plane) -> float {
+		float coord_val = (plane.coord == 0) ? pos.x : 
+		                  (plane.coord == 1) ? pos.y : pos.z;
+		
+		if (plane.sign < 0.0f) {
+			return coord_val + pos.w;
+		} else {
+			return pos.w - coord_val;
+		}
+	};
+	
+	for (int i = 0; i < 6; ++i) {
+		if (polygon.empty()) break; 
+		
+		Plane const& plane = planes[i];
+		std::vector<ShadedVertex> clipped;
+		
+		for (size_t j = 0; j < polygon.size(); ++j) {
+			ShadedVertex const& curr = polygon[j];
+			ShadedVertex const& next = polygon[(j + 1) % polygon.size()];
+			
+			float curr_dist = distance_to_plane(curr.clip_position, plane);
+			float next_dist = distance_to_plane(next.clip_position, plane);
+			
+			bool curr_inside = (curr_dist >= 0.0f);
+			bool next_inside = (next_dist >= 0.0f);
+			
+			if (curr_inside && next_inside) {
+				clipped.push_back(next);
+				
+			} else if (curr_inside && !next_inside) {
+				float t = curr_dist / (curr_dist - next_dist);
+				ShadedVertex intersection = lerp(curr, next, t);
+				
+				if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Flat) {
+					intersection.attributes = va.attributes;
+				}
+				
+				clipped.push_back(intersection);
+				
+			} else if (!curr_inside && next_inside) {
+				float t = curr_dist / (curr_dist - next_dist);
+				ShadedVertex intersection = lerp(curr, next, t);
+				
+				if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Flat) {
+					intersection.attributes = va.attributes;
+				}
+				
+				clipped.push_back(intersection);
+				clipped.push_back(next);
+			}
+		}
+		
+		polygon = clipped;
+	}
+	
+	if (polygon.size() >= 3) {
+		for (size_t i = 1; i + 1 < polygon.size(); ++i) {
+			emit_vertex(polygon[0]);
+			emit_vertex(polygon[i]);
+			emit_vertex(polygon[i + 1]);
+		}
+	}
 }
 
 // -------------------------------------------------------------------------
@@ -361,15 +443,116 @@ void Pipeline<p, P, flags>::rasterize_line(
 	// this function!
 	// The OpenGL specification section 3.5 may also come in handy.
 
-	{ // As a placeholder, draw a point in the middle of the line:
-		//(remove this code once you have a real implementation)
-		Fragment mid;
-		mid.fb_position = (va.fb_position + vb.fb_position) / 2.0f;
-		mid.attributes = va.attributes;
-		mid.derivatives.fill(Vec2(0.0f, 0.0f));
-		emit_fragment(mid);
-	}
+	float x0 = va.fb_position.x;
+	float y0 = va.fb_position.y;
+	float z0 = va.fb_position.z;
+	
+	float x1 = vb.fb_position.x;
+	float y1 = vb.fb_position.y;
+	float z1 = vb.fb_position.z;
 
+	auto emit = [&](int px, int py, float t) {
+		Fragment frag;
+		frag.fb_position = Vec3(px + 0.5f, py + 0.5f, z0 + t * (z1 - z0));
+		frag.attributes = va.attributes;
+		frag.derivatives.fill(Vec2(0.0f, 0.0f));
+		emit_fragment(frag);
+	};
+
+	// Check if line segment intersects diamond at pixel (px, py)
+	auto line_exits_diamond = [](float x0, float y0, float x1, float y1, int px, int py) -> bool {
+		float cx = px + 0.5f;
+		float cy = py + 0.5f;
+		
+		auto dist = [](float x, float y, float cx, float cy) {
+			return std::abs(x - cx) + std::abs(y - cy);
+		};
+		
+		float d0 = dist(x0, y0, cx, cy);
+		float d1 = dist(x1, y1, cx, cy);
+		
+		// If both endpoints are inside, line doesn't exit
+		if (d0 < 0.5f && d1 < 0.5f) return false;
+		
+		// If both endpoints are outside and on the same side, might not intersect
+		// But we need to check if the line passes through
+		
+		float dx = x1 - x0;
+		float dy = y1 - y0;
+		float len_sq = dx * dx + dy * dy;
+		
+		if (len_sq < 1e-10f) {
+			return d0 <= 0.5f;
+		}
+		
+		float t = ((cx - x0) * dx + (cy - y0) * dy) / len_sq;
+		t = std::max(0.0f, std::min(1.0f, t)); 
+		
+		float closest_x = x0 + t * dx;
+		float closest_y = y0 + t * dy;
+		float min_dist = dist(closest_x, closest_y, cx, cy);
+		
+		return min_dist <= 0.5f;
+	};
+
+	// Determine major axis
+	float dx = x1 - x0;
+	float dy = y1 - y0;
+	bool x_major = std::abs(dx) >= std::abs(dy);
+
+	if (x_major) {
+		if (dx < 0) {
+			std::swap(x0, x1);
+			std::swap(y0, y1);
+			std::swap(z0, z1);
+			dx = -dx;
+			dy = -dy;
+		}
+
+		if (std::abs(dx) < 1e-10f) return; 
+
+		int x_start = (int)std::floor(x0);
+		int x_end = (int)std::floor(x1);
+
+		for (int x = x_start; x <= x_end; x++) {
+			float t = (x + 0.5f - x0) / dx;
+			t = std::max(0.0f, std::min(1.0f, t));
+			
+			float y = y0 + t * dy;
+			int py = (int)std::floor(y);
+			
+			if (line_exits_diamond(x0, y0, x1, y1, x, py)) {
+				emit(x, py, t);
+			}
+		}
+
+	} else {
+		// Step along Y axis
+		if (dy < 0) {
+			std::swap(x0, x1);
+			std::swap(y0, y1);
+			std::swap(z0, z1);
+			dx = -dx;
+			dy = -dy;
+		}
+
+		if (std::abs(dy) < 1e-10f) return; 
+
+		int y_start = (int)std::floor(y0);
+		int y_end = (int)std::floor(y1);
+
+		for (int y = y_start; y <= y_end; y++) {
+			float t = (y + 0.5f - y0) / dy;
+			t = std::max(0.0f, std::min(1.0f, t));
+			
+			float x = x0 + t * dx;
+			int px = (int)std::floor(x);
+			
+			if (line_exits_diamond(x0, y0, x1, y1, px, y)) {
+				emit(px, y, t);
+			}
+		}
+	}
 }
 
 /*
@@ -421,12 +604,89 @@ void Pipeline<p, P, flags>::rasterize_triangle(
 		// A1T3: flat triangles
 		// TODO: rasterize triangle (see block comment above this function).
 
-		// As a placeholder, here's code that draws some lines:
-		//(remove this and replace it with a real solution)
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(va, vb, emit_fragment);
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vb, vc, emit_fragment);
-		Pipeline<PrimitiveType::Lines, P, flags>::rasterize_line(vc, va, emit_fragment);
-	} else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Smooth) {
+		Vec3 a = va.fb_position;
+		Vec3 b = vb.fb_position;
+		Vec3 c = vc.fb_position;
+		
+		// Compute bounding box
+		float min_x = std::min({a.x, b.x, c.x});
+		float max_x = std::max({a.x, b.x, c.x});
+		float min_y = std::min({a.y, b.y, c.y});
+		float max_y = std::max({a.y, b.y, c.y});
+		
+		int x_start = (int)std::floor(min_x);
+		int x_end = (int)std::floor(max_x);
+		int y_start = (int)std::floor(min_y);
+		int y_end = (int)std::floor(max_y);
+		
+		// edge function
+		auto edge_function = [](Vec2 a, Vec2 b, Vec2 pixel_center) -> float {
+			return (pixel_center.x - a.x) * (b.y - a.y) - (pixel_center.y - a.y) * (b.x - a.x);
+		};
+		
+		//Top-left rule helper
+		auto is_top_left = [](Vec2 a, Vec2 b) -> bool {
+			Vec2 edge = b - a;
+			bool is_top = (edge.y == 0.0f && edge.x < 0.0f);
+			bool is_left = (edge.y > 0.0f);
+			return is_top || is_left;
+		};
+		
+		Vec2 a2(a.x, a.y);
+		Vec2 b2(b.x, b.y);
+		Vec2 c2(c.x, c.y);
+		
+		// rriangle winding and compute area
+		float area = edge_function(a2, b2, c2);
+		
+		if (std::abs(area) < 1e-6f) return;
+		
+		//Normalize winding to counter-clockwise
+		if (area < 0.0f) {
+			std::swap(b2, c2);
+			std::swap(b, c);
+			area = -area;
+		}
+		
+		float inv_area = 1.0f / area;
+		
+		for (int y = y_start; y <= y_end; ++y) {
+			for (int x = x_start; x <= x_end; ++x) {
+				Vec2 pixel_center(x + 0.5f, y + 0.5f);
+				
+				float w0 = edge_function(b2, c2, pixel_center);
+				float w1 = edge_function(c2, a2, pixel_center);
+				float w2 = edge_function(a2, b2, pixel_center);
+				
+				bool inside = true;
+				
+				if (w0 < 0.0f) inside = false;
+				else if (w0 == 0.0f && !is_top_left(b2, c2)) inside = false;
+				
+				if (w1 < 0.0f) inside = false;
+				else if (w1 == 0.0f && !is_top_left(c2, a2)) inside = false;
+				
+				if (w2 < 0.0f) inside = false;
+				else if (w2 == 0.0f && !is_top_left(a2, b2)) inside = false;
+				
+				if (inside) {
+					float lambda0 = w0 * inv_area;
+					float lambda1 = w1 * inv_area;
+					float lambda2 = w2 * inv_area;
+					
+					float z = lambda0 * a.z + lambda1 * b.z + lambda2 * c.z;
+					
+					Fragment frag;
+					frag.fb_position = Vec3(pixel_center.x, pixel_center.y, z);
+					frag.attributes = va.attributes;  
+					frag.derivatives.fill(Vec2(0.0f, 0.0f));
+					
+					emit_fragment(frag);
+				}
+			}
+		}
+	}
+	else if constexpr ((flags & PipelineMask_Interp) == Pipeline_Interp_Smooth) {
 		// A1T5: screen-space smooth triangles
 		// TODO: rasterize triangle (see block comment above this function).
 
