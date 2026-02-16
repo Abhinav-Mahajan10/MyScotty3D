@@ -47,51 +47,51 @@ It was great at it. my prompt was, "Explain the diamond exit rule with examples,
 
 (##) A1T5 FINAL
 
-Reference image:
 <div class="twentytwenty-container">
-    <img src="A1-writeup/reference/task5-smooth-correct-triangles.png" alt="Rasterize smooth and correct cubes">
+    <img src="A1-writeup/student/task5-smooth-correct-triangles.png" alt="Rasterize smooth and correct cubes">
 </div>
-Please replace the above image with your own screenshot of the rasterized smooth and correct triangles cubes.
-This can be done by doing the following:
-* Open `media/js3d/A1-cubes.js3d` in the GUI, 
-* Set the DrawStyle of the wireframe cube to be 'smooth' and the DrawStyle of the flat cube to be 'correct', 
-* Click on the Render tab, then open the Render Window, and use the default settings to rasterize the scene. You will need to switch from the `Path Tracer` option to `Software Rasterizer` option.
-
-Your completion will be graded based on the above picture, the reference `test.a1.task5.cpp` file and 
-checking that rasterizing flat triangle meshes will look decent.
 
 (##) A1T6 FINAL
 
-You do not need any screenshots for this task. 
-
-Your completion will be graded based on the reference `test.a1.task6.cpp` file and 
-checking that rasterizing the samplers scene will look decent.
-
 (##) A1T7 FINAL
 
-Insert a picture of your sample pattern here (up to you on how you created it):
 <div class="twentytwenty-container">
-    <img src="A1-writeup/reference/task7-sample-pattern.png" alt="Sample pattern">
+    <img src="A1-writeup/student/task7-custom-pattern.png" alt="Custom Sample Pattern">
 </div>
 
-Explanation of what your SamplePattern does and scenarios it would do well and poorly in:
+Pattern Description: Stratified sampling with 4 non-uniformly weighted samples: bottom-left (0.3, 0.3, weight=0.25), 
+top-left (0.35, 0.7, weight=0.40), top-right (0.6, 0.6, weight=0.25), bottom-right (0.7, 0.4, weight=0.10).
 
-Your completion will be graded based on the above answer, the reference `test.a1.task7.cpp` file and 
-checking that rasterizing the samplers scene will look decent.
+Performs well when: a. Diagonal edges (samples spread across pixel regions). b.Natural scenes (irregular sampling reduces grid aliasing patterns). c. Moderate detail with lower cost than dense grids
+
+Performs Bad when: a.Very fine detail (only 4 samples may miss thin features). b. Axis-aligned edges (irregular spacing doesn't align well). c. May introduce slight upper-left bias due to asymmetric weighting. c. May introduce slight upper-left bias due to asymmetric weighting
+
+Comparison Results:
+
+No Supersampling (Center):
+<div class="twentytwenty-container">
+    <img src="A1-writeup/student/task7_no_supersample.png" alt="No Supersampling">
+</div>
+
+Custom Pattern:
+<div class="twentytwenty-container">
+    <img src="A1-writeup/student/task7_test.png" alt="Custom Pattern Result">
+</div>
+
+The custom pattern reduces jagged edges compared to single-sample rendering while maintaining reasonable performance.
+
 
 (##) RASTERIZED IMAGE FINAL
 
 Your image:
 <div class="twentytwenty-container">
-    <img src="A1-writeup/reference/rasterize_image.png" alt="Your creation">
+    <img src="A1-writeup/student/render.png" alt="Your creation">
 </div>
-Explanation of what it is and how you made it:
-
-Any free model sources you need to credit?
+I used the cow model and added the default wooden texture to it. I tried adding a tiger mesh to it but it didnt render well, and also i tried combining other things and obj's but it crashed the UI so I stuck to this simple render.
 
 (##) GenAI Use FINAL
 
-Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
+Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)? None
 
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
 

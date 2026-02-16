@@ -18,7 +18,7 @@ Framebuffer::Framebuffer(uint32_t width_, uint32_t height_, SamplePattern const&
 	}
 
 	uint32_t samples =
-		width * height * static_cast<uint32_t>(sample_pattern.centers_and_weights.size());
+		 width * height * static_cast<uint32_t>(sample_pattern.centers_and_weights.size());
 
 	// allocate storage for color and depth samples:
 	colors.assign(samples, Spectrum{0.0f, 0.0f, 0.0f});
@@ -31,11 +31,18 @@ HDR_Image Framebuffer::resolve_colors() const {
 
 	HDR_Image image(width, height);
 
-	for (uint32_t y = 0; y < height; ++y) {
-		for (uint32_t x = 0; x < width; ++x) {
-			image.at(x, y) = color_at(x, y, 0);
-		}
-	}
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            Spectrum sum(0.0f, 0.0f, 0.0f);
+            
+            for (uint32_t s = 0; s < sample_pattern.centers_and_weights.size(); ++s) {
+                float weight = sample_pattern.centers_and_weights[s].z;  
+                sum += color_at(x, y, s) * weight;
+            }
+            
+            image.at(x, y) = sum;
+        }
+    }
 
-	return image;
+    return image;
 }

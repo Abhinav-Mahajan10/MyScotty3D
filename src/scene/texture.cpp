@@ -26,7 +26,30 @@ Spectrum sample_bilinear(HDR_Image const &image, Vec2 uv) {
 	// A1T6: sample_bilinear
 	//TODO: implement bilinear sampling strategy on texture 'image'
 
-	return sample_nearest(image, uv); //placeholder so image doesn't look blank
+	float x = image.w * std::clamp(uv.x, 0.0f, 1.0f);
+    float y = image.h * std::clamp(uv.y, 0.0f, 1.0f);
+
+    int x0 = (int)std::floor(x - 0.5f);
+    int y0 = (int)std::floor(y - 0.5f);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+
+    float fx = x - (x0 + 0.5f);
+    float fy = y - (y0 + 0.5f);
+
+    x0 = std::clamp(x0, 0, (int)image.w - 1);
+    x1 = std::clamp(x1, 0, (int)image.w - 1);
+    y0 = std::clamp(y0, 0, (int)image.h - 1);
+    y1 = std::clamp(y1, 0, (int)image.h - 1);
+
+    Spectrum t00 = image.at(x0, y0);
+    Spectrum t10 = image.at(x1, y0);
+    Spectrum t01 = image.at(x0, y1);
+    Spectrum t11 = image.at(x1, y1);
+
+    Spectrum row0 = (1.0f - fx) * t00 + fx * t10;
+    Spectrum row1 = (1.0f - fx) * t01 + fx * t11;
+    return (1.0f - fy) * row0 + fy * row1;
 }
 
 
@@ -34,7 +57,23 @@ Spectrum sample_trilinear(HDR_Image const &base, std::vector< HDR_Image > const 
 	// A1T6: sample_trilinear
 	//TODO: implement trilinear sampling strategy on using mip-map 'levels'
 
-	return sample_nearest(base, uv); //placeholder so image doesn't look blank
+	int max_level = (int)levels.size();
+
+    lod = std::clamp(lod, 0.0f, (float)max_level);
+
+    int d0 = (int)std::floor(lod);
+    int d1 = d0 + 1;
+    float t = lod - (float)d0;   
+    
+	d1 = std::min(d1, max_level);
+
+    auto sample_level = [&](int level) -> Spectrum {
+        if (level <= 0)
+            return sample_bilinear(base, uv);
+        return sample_bilinear(levels[level - 1], uv);
+    };
+
+    return (1.0f - t) * sample_level(d0) + t * sample_level(d1);
 }
 
 /*
@@ -90,9 +129,18 @@ void generate_mipmap(HDR_Image const &base, std::vector< HDR_Image > *levels_) {
 
 		// A1T6: generate
 		//TODO: Write code to fill the levels of the mipmap hierarchy by downsampling
-
 		//Be aware that the alignment of the samples in dst and src will be different depending on whether the image is even or odd.
+		for (uint32_t dy = 0; dy < dst.h; ++dy) {
+			for (uint32_t dx = 0; dx < dst.w; ++dx) {
+				uint32_t sx0 = 2 * dx;
+				uint32_t sy0 = 2 * dy;
+				uint32_t sx1 = std::min(sx0 + 1, src.w - 1);
+				uint32_t sy1 = std::min(sy0 + 1, src.h - 1);
 
+				Spectrum avg = src.at(sx0, sy0) + src.at(sx1, sy0) + src.at(sx0, sy1) + src.at(sx1, sy1);
+				dst.at(dx, dy) = avg * 0.25f;
+			}
+		}
 	};
 
 	std::cout << "Regenerating mipmap (" << levels.size() << " levels): [" << base.w << "x" << base.h << "]";

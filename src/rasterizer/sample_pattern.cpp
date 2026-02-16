@@ -32,7 +32,15 @@ std::vector<SamplePattern> const& SamplePattern::all_patterns() {
 		const uint32_t id = 0;
 		const std::string name = "Custom Sample Pattern";
 		// This will cause it to segfault when used, so be sure to change it!
-		std::vector<Vec3> centers_and_weights = {};
+		// std::vector<Vec3> centers_and_weights = {};
+		// return SamplePattern(id, name, centers_and_weights);
+		std::vector<Vec3> centers_and_weights;
+
+		centers_and_weights.emplace_back(0.3f,  0.3f,  0.25f);
+		centers_and_weights.emplace_back(0.35f, 0.7f,  0.4f); 
+		centers_and_weights.emplace_back(0.6f,  0.6f,  0.25f);
+		centers_and_weights.emplace_back(0.7f,  0.4f,  0.1f);
+
 		return SamplePattern(id, name, centers_and_weights);
 	};
 	static std::vector<SamplePattern> all = [&]() {
