@@ -1,70 +1,53 @@
 **Assignment 2 Report**
 
-AndrewID: XXXX
-
-(##) About this template
-
-* If you choose to implement a task, please **CLEARLY** indicate that you implemented it. You can do this by adding `<font size="10"> IMPLEMENTED </font>` or something similar to the task.
-
-* You can view your writeup by opening it in a browser - right click this file and open with your browser of choice.
-
-* Replace reference images with your own screenshots or renders when applicable.
-
-* If you didn't handle any edge cases or you don't think are any, please state that there isn't any.
-
-* Include descriptions of any encountered problems and the time you spent on each task.
+AndrewID: abhinavm 
 
 (##) A2L1 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
 **What edge cases did you handle?**
 
-*  Answer here:
-
-Your completion will be graded based on the reference `test.a2.l1.cpp` file and 
-checking that the operation works in the GUI.
+Boundary edge: If either adjacent face is a boundary face, the flip is rejected (std::nullopt). Flipping a boundary edge would break the mesh topology.
+Same face on both sides: If h and t belong to the same face (i.e., the edge is shared by a single face with itself, a degenerate case), the flip is rejected.
+Duplicate vertex (C == D): After a flip, the edge would connect vertices C and D. If C and D are already the same vertex, flipping would create a degenerate zero-length edge or a self-loop, so the operation is rejected.
 
 (##) A2L2 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
 **What edge cases did you handle?**
 
-*  Answer here:
-
-Your completion will be graded based on the reference `test.a2.l2.cpp` file and 
-checking that the operation works in the GUI.
+The main edge case handled ive handled are boundary faces. When splitting an edge, either or both adjacent faces might be boundary faces. For a boundary face, the split still inserts the midpoint vertex and splits the edge itself, but does not add a diagonal edge to subdivide that face, since boundary faces are just placeholder loops representing "empty space" and shouldn't be treated as real geometry. The code handles this with the if (!F_h->boundary) / else and if (!F_t->boundary) / else branches: non-boundary faces get a new diagonal edge and a new face, while boundary faces just get the edge bisected and the halfedge chain updated minimally to stay valid.
 
 (##) A2L3 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-**What edge cases did you handle?**
-
-*  Answer here:
-
-Your completion will be graded based on the reference `test.a2.l3.cpp` file and 
-checking that the operation works in the GUI.
+Non-manifold (figure-8) topology: Checks that A and B don't share a common neighbor outside of the two adjacent faces. If they do, collapsing would create a non-manifold vertex, so the operation is rejected.
+Triangle face collapse: If an adjacent face is a triangle, collapsing would produce a degenerate 2-sided face. Instead, the triangle's two remaining edges are merged or their twins are re-wired together and the face is erased.
+Boundary faces: Both checks above correctly skip boundary faces, since they aren't real geometry and shouldn't factor into validity checks or triangle detection.
 
 (##) A2L4 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
 **What edge cases did you handle?**
 
-*  Answer here:
+For extrude_positions, the key design choice was recovering outer vertex positions from the inner face topology via the chain h->twin->next->twin->vertex, which traverses the surrounding quad to find the corresponding original vertex. Each inner vertex is then placed by lerping between the face centroid and its outer position by (1 - shrink), offset by move.
 
-Your completion will be graded based on the reference `test.a2.l4.cpp` file and 
-checking that the operation works in the GUI.
+(##) Note:
+I have implemented A2lx1, dissolve vertex.
 
 (##) GenAI Use CHECKPOINT
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
+None
 
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
-
+None
 What was it good at? What was it bad at?
+N/A
 
 (##) A2G1 FINAL
 
@@ -116,14 +99,12 @@ What was it good at? What was it bad at?
 
 (##) A2LX1 EXTRA CREDIT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
 **What edge cases did you handle?**
 
-*  Answer here:
-
-Your completion will be graded based on the reference `test.a2.lx1.cpp` file and 
-checking that the operation works in the GUI.
+Boundary vertex: If any of the faces adjacent to v is a boundary face, the operation is rejected. 
+Degenerate result: After removing v and all its spokes, the merged face must have at least 3 sides. If the total remaining halfedges would be fewer than 3, the operation is rejected to avoid creating an invalid face.
 
 (##) A2LX2 EXTRA CREDIT
 
