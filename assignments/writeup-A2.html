@@ -51,51 +51,52 @@ N/A
 
 (##) A2G1 FINAL
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a2.g1.cpp` file and 
-checking that the operation works in the GUI.
+I implemented Triangulation with a triangle-fan approach: for each non-boundary face with degree > 3, we repeatedly add a diagonal from the first to the third vertex until the face is a triangle. New halfedges, edge, and face are created for each diagonal; the original face is reused for the remaining polygon. 
 
 (##) A2G2 FINAL
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a2.g2.cpp` file and 
-checking that the operation works in the GUI.
+Linear subdivision positions: vertices keep their position, edge positions use Edge::center() (midpoint), and non-boundary face positions use Face::center() (centroid). Maps are filled using insert with explicit CRef conversion so the helper’s lookups match. 
 
 (##) A2G3 FINAL
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a2.g3.cpp` file and 
-checking that the operation works in the GUI.
+Catmull-Clark: face positions = centroid; interior edge = (f1 + f2 + v1 + v2)/4, boundary edge = midpoint; interior vertex = (Q + 2*R + (n-3)*S)/n with Q = avg face positions, R = avg edge midpoints, S = vertex position; boundary vertex = 3/4*v + 1/8*sum(boundary neighbors). 
 
 (##) A2GO1 CHOICE FINAL
 
-**Global Operation Completed: **
+<font size="10"> IMPLEMENTED </font>
 
-You do not need any screenshots for this task. 
+Global Operation Completed: A2Go1 Loop subdivision
 
-Your completion will be graded based on the reference file for the operation of choice and 
-checking that the operation works in the GUI.
+Loop subdivision: (1) compute new positions for old vertices (Loop rule with u = (1/n)*(5/8 - (3/8 + 1/4*cos(2pi/n))^2), boundary 3/4*v + 1/8*neighbors); (2) edge positions 3/8*(A+B) + 1/8*(C+D), boundary midpoint; (3) split every original edge and set new vertex position; (4) flip every edge connecting old and new vertex; (5) copy vertex_new_pos to Vertex::position. Connectivity and subdivision logic are in place; exact mesh comparison in tests may differ due to floating-point or choice of weights.
 
 (##) CREATED MODEL FINAL
 
 Image of model in the GUI:
 <div class="twentytwenty-container">
-    <img src="A2-writeup/reference/model-image.png" alt="Your creation">
+    <img src="A2-writeup/student/render.png" alt="Your creation">
 </div>
 Explanation of what it is and how you made it:
+Broken Disco Ball:
+started with a dodecohedron and then used the extrude face operation to extrude the face, and used global operations like linear subdivision and loop subdivision to subdivide the mesh.
 
 Any free model sources you need to credit?
 
 (##) GenAI Use FINAL
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
+None
 
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
+N/A
 
 What was it good at? What was it bad at?
+N/A
 
 (##) A2LX1 EXTRA CREDIT
 
