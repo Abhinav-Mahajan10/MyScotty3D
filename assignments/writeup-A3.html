@@ -19,13 +19,11 @@ checking that camera rays properly fill up the camera view frustrum.
 
 <font size="10"> IMPLEMENTED </font>
 
-Implemented `Camera::sample_ray` and `Rect::sample`.
-
+Implemented `Camera::sample_ray` and `Rect::sample`. 
 - Pixel-to-sensor mapping uses `vertical_fov`, `aspect_ratio`, and film resolution.
 - Rays originate at camera origin and pass through jittered sub-pixel sample positions.
 - Supersampling offsets are sampled uniformly within each pixel.
-- Verified with GUI (camera rays / rendering preview).
-- All relevant tests passed: `a3.task1.*`.
+- Verified with GUI (camera rays / rendering preview), All relevant tests passed: `a3.task1.*`.
 
 (##) A3T2 CHECKPOINT
 
@@ -42,9 +40,7 @@ Implemented ray-primitive intersection for:
 - `Sphere::hit` using quadratic roots with proper `dist_bounds` handling.
 
 The implementation handles cases where the first valid root is out of bounds but the second is valid.
-- Verified with GUI (normals/visibility rendering).
-- All relevant tests passed: `a3.task2.*`.
-- Added test cases:
+- Verified with GUI (normals/visibility rendering), All relevant tests passed: `a3.task2.*` and Added test cases:
   - `a3.task2.sphere.hit.bounds.second_root`
   - `a3.task2.triangle.hit.outside_miss`
 
@@ -60,13 +56,10 @@ checking that the generated BVH looks reasonable and rendering large meshes is f
 Implemented acceleration structures and traversal:
 
 - `BBox::hit` with slab intersection and bounded interval updates.
-- `Triangle::bbox`.
 - `BVH::build` with SAH-style bucket partitioning and recursive node construction.
 - `BVH::hit` iterative traversal with bbox culling and near-first child ordering.
 
-- Verified with GUI (BVH visualization and rendering performance sanity check).
-- All relevant tests passed: `a3.task3.*`.
-- Added test cases:
+- Verified with GUI (BVH visualization and rendering performance sanity check), All relevant tests passed: `a3.task3.*` and Added test cases:
   - `a3.task3.bbox.hit.parallel_slab_cases`
   - `a3.task3.bvh.hit.matches_list`
 
@@ -74,21 +67,14 @@ Implemented acceleration structures and traversal:
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
 
-ChatGPT (Cursor coding assistant).
+ Claude 4.6 Sonnet
 
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
 
-Code generation, algorithm implementation checks, debugging failed tests, and writing additional edge-case tests.
+Debugging for the BVH, I was getting some edge cases wrong. 
 
 What was it good at? What was it bad at?
-
-Good at quickly drafting correct intersection/BVH logic and iterating against test failures.
-Less reliable for assignment-specific nuance without running the exact local tests, so test-driven verification was still necessary.
-
-(##) Note
-
-This submission targets only Checkpoint A3.0 (`A3T1`, `A3T2`, `A3T3`).
-Sections for A3.5/final are intentionally left unfilled.
+It was good at debugging, and it gave me some edge cases to test on, which helped me in getting to work in GUI.
 
 (##) A3T1 EXTRA CREDIT
 
@@ -99,7 +85,7 @@ Implemented defocus blur and bokeh support in camera sampling:
 - Focal plane: sensor point is projected with `focal_dist`, and rays are aimed from sampled aperture origin to that focal target.
 - Aperture shape support:
   - Rectangle aperture via uniform rectangle sampling.
-  - Circle aperture via uniform disk sampling (`Circle::sample`) and correct area PDF (`Circle::pdf`).
+  - Circle aperture via uniform disk sampling and correct area PDF.
 - Verified with GUI by varying `aperture_size`, `focal_dist`, and aperture shape (rectangle vs circle).
 
 (##) A3T4 FINAL
