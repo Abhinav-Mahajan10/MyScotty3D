@@ -18,26 +18,45 @@ BBox Sphere::bbox() const {
 	return box;
 }
 
-PT::Trace Sphere::hit(Ray ray) const {
+PT::Trace Sphere::hit(Ray ray) const
+{
 	//A3T2 - sphere hit
+	PT::Trace ret;
+	ret.origin = ray.point;
+	ret.hit = false;
+	ret.distance = 0.0f;
+	ret.position = Vec3{};
+	ret.normal = Vec3{};
+	ret.uv = Vec2{};
 
-    // TODO (PathTracer): Task 2
-    // Intersect this ray with a sphere of radius Sphere::radius centered at the origin.
+	float a = dot(ray.dir, ray.dir);
+	float b = 2.0f * dot(ray.point, ray.dir);
+	float c = dot(ray.point, ray.point) - radius * radius;
+	float disc = b * b - 4.0f * a * c;
+	if (disc < 0.0f)
+		return ret;
 
-    // If the ray intersects the sphere twice, ret should
-    // represent the first intersection, but remember to respect
-    // ray.dist_bounds! For example, if there are two intersections,
-    // but only the _later_ one is within ray.dist_bounds, you should
-    // return that one!
+	float root = std::sqrt(disc);
+	float inv_2a = 0.5f / a;
+	float t0 = (-b - root) * inv_2a;
+	float t1 = (-b + root) * inv_2a;
+	if (t0 > t1)
+		std::swap(t0, t1);
 
-    PT::Trace ret;
-    ret.origin = ray.point;
-    ret.hit = false;       // was there an intersection?
-    ret.distance = 0.0f;   // at what distance did the intersection occur?
-    ret.position = Vec3{}; // where was the intersection?
-    ret.normal = Vec3{};   // what was the surface normal at the intersection?
-	ret.uv = Vec2{}; 	   // what was the uv coordinates at the intersection? (you may find Sphere::uv to be useful)
-    return ret;
+	float t = -1.0f;
+	if (t0 >= ray.dist_bounds.x && t0 <= ray.dist_bounds.y)
+		t = t0;
+	else if (t1 >= ray.dist_bounds.x && t1 <= ray.dist_bounds.y)
+		t = t1;
+	else
+		return ret;
+
+	ret.hit = true;
+	ret.distance = t;
+	ret.position = ray.at(t);
+	ret.normal = ret.position.unit();
+	ret.uv = uv(ret.normal);
+	return ret;
 }
 
 Vec3 Sphere::sample(RNG &rng, Vec3 from) const {

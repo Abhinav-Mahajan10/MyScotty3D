@@ -54,3 +54,13 @@ Test test_a3_task2_sphere_hit_simple_second("a3.task2.sphere.hit.simple.second",
 	}
 });
 
+Test test_a3_task2_sphere_hit_bounds_second_root("a3.task2.sphere.hit.bounds.second_root", []() {
+	Ray ray(Vec3(0, 0, -2), Vec3(0, 0, 1), Vec2(1.5f, 3.5f));
+	PT::Trace ret = try_intersect(1.0f, ray);
+	PT::Trace exp(true, Vec3(0, 0, -2), Vec3(0, 0, 1), Vec3(0, 0, 1), Vec2{0.25f, 0.5f});
+	if (auto diff = Test::differs(ret, exp))
+	{
+		throw Test::error("Sphere did not select second valid root: " + diff.value());
+	}
+});
+

@@ -48,3 +48,28 @@ Test test_a3_task3_bvh_hit_simple_sphere("a3.task3.bvh.hit.simple.sphere", []() 
 		throw Test::error("Trace does not match expected: " + diff.value());
 	}
 });
+
+Test test_a3_task3_bvh_hit_matches_list("a3.task3.bvh.hit.matches_list", []() {
+	std::vector<Indexed_Mesh::Vert> verts = {
+		{Vec3(0, 0, 0), Vec3(0, 0, 1), Vec2(0, 0), 0},
+		{Vec3(1, 0, 0), Vec3(0, 0, 1), Vec2(1, 0), 1},
+		{Vec3(0, 1, 0), Vec3(0, 0, 1), Vec2(0, 1), 2},
+		{Vec3(0, 0, 2), Vec3(0, 0, 1), Vec2(0, 0), 3},
+		{Vec3(1, 0, 2), Vec3(0, 0, 1), Vec2(1, 0), 4},
+		{Vec3(0, 1, 2), Vec3(0, 0, 1), Vec2(0, 1), 5},
+	};
+	std::vector<Indexed_Mesh::Index> indices = {0, 1, 2, 3, 4, 5};
+	Indexed_Mesh idx_mesh(std::move(verts), std::move(indices));
+
+	PT::Tri_Mesh bvh_mesh(idx_mesh, true);
+	PT::Tri_Mesh list_mesh(idx_mesh, false);
+
+	Ray ray(Vec3(0.2f, 0.2f, -1.0f), Vec3(0, 0, 1));
+	PT::Trace from_bvh = bvh_mesh.hit(ray);
+	PT::Trace from_list = list_mesh.hit(ray);
+
+	if (auto diff = Test::differs(from_bvh, from_list))
+	{
+		throw Test::error("BVH and list intersection mismatch: " + diff.value());
+	}
+});

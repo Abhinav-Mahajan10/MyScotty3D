@@ -78,15 +78,40 @@ struct BBox {
 		return *this;
 	}
 
-	bool hit(const Ray& ray, Vec2& times) const {
+	bool hit(const Ray& ray, Vec2& times) const
+	{
 		//A3T3 - bbox hit
+		float t_min = times.x;
+		float t_max = times.y;
 
-		// Implement ray - bounding box intersection test
-		// If the ray intersected the bounding box within the range given by
-		// [times.x,times.y], update times with the new intersection times.
-		// This means at least one of tmin and tmax must be within the range
+		for (int axis = 0; axis < 3; axis++)
+		{
+			float o = ray.point[axis];
+			float d = ray.dir[axis];
+			float mn = min[axis];
+			float mx = max[axis];
 
-		return false;
+			if (std::abs(d) <= EPS_F)
+			{
+				if (o < mn || o > mx)
+					return false;
+				continue;
+			}
+
+			float inv_d = 1.0f / d;
+			float t0 = (mn - o) * inv_d;
+			float t1 = (mx - o) * inv_d;
+			if (t0 > t1)
+				std::swap(t0, t1);
+
+			t_min = std::max(t_min, t0);
+			t_max = std::min(t_max, t1);
+			if (t_max < t_min)
+				return false;
+		}
+
+		times = Vec2(t_min, t_max);
+		return true;
 	}
 
 	/// Get the eight corner points of the bounding box

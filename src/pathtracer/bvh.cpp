@@ -4,6 +4,9 @@
 #include "instance.h"
 #include "tri_mesh.h"
 
+#include <algorithm>
+#include <array>
+#include <limits>
 #include <stack>
 
 namespace PT {
@@ -22,37 +25,217 @@ struct SAHBucketData {
 };
 
 template<typename Primitive>
-void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size) {
+void BVH<Primitive>::build(std::vector<Primitive>&& prims, size_t max_leaf_size)
+{
 	//A3T3 - build a bvh
+	nodes.clear();
+	primitives = std::move(prims);
 
-	// Keep these
-    nodes.clear();
-    primitives = std::move(prims);
+	root_idx = 0;
+	if (primitives.empty())
+		return;
 
-    // Construct a BVH from the given vector of primitives and maximum leaf
-    // size configuration.
+	root_idx = new_node();
+	std::vector<BVHBuildData> stack;
+	stack.emplace_back(0, primitives.size(), root_idx);
 
-	//TODO
+	while (!stack.empty())
+	{
+		BVHBuildData cur = stack.back();
+		stack.pop_back();
 
+		size_t start = cur.start;
+		size_t range = cur.range;
+		size_t end = start + range;
+
+		BBox prim_bbox;
+		BBox centroid_bbox;
+		for (size_t i = start; i < end; i++)
+		{
+			BBox b = primitives[i].bbox();
+			prim_bbox.enclose(b);
+			centroid_bbox.enclose(b.center());
+		}
+
+		nodes[cur.node].bbox = prim_bbox;
+		nodes[cur.node].start = start;
+		nodes[cur.node].size = range;
+
+		if (range <= max_leaf_size)
+		{
+			nodes[cur.node].l = nodes[cur.node].r = cur.node;
+			continue;
+		}
+
+		constexpr int BUCKETS = 12;
+		float best_cost = std::numeric_limits<float>::infinity();
+		int best_axis = -1;
+		int best_split_bucket = -1;
+
+		for (int axis = 0; axis < 3; axis++)
+		{
+			float cmin = centroid_bbox.min[axis];
+			float cmax = centroid_bbox.max[axis];
+			if (cmax - cmin <= EPS_F)
+				continue;
+
+			std::array<SAHBucketData, BUCKETS> buckets;
+			for (auto& b : buckets)
+			{
+				b.bb.reset();
+				b.num_prims = 0;
+			}
+
+			for (size_t i = start; i < end; i++)
+			{
+				float c = primitives[i].bbox().center()[axis];
+				float rel = (c - cmin) / (cmax - cmin);
+				int b = std::min(BUCKETS - 1, std::max(0, static_cast<int>(rel * BUCKETS)));
+				buckets[b].num_prims++;
+				buckets[b].bb.enclose(primitives[i].bbox());
+			}
+
+			std::array<BBox, BUCKETS> left_bb, right_bb;
+			std::array<size_t, BUCKETS> left_count{}, right_count{};
+			BBox run_left, run_right;
+			size_t cnt_left = 0, cnt_right = 0;
+			for (int i = 0; i < BUCKETS; i++)
+			{
+				if (buckets[i].num_prims)
+					run_left.enclose(buckets[i].bb);
+				cnt_left += buckets[i].num_prims;
+				left_bb[i] = run_left;
+				left_count[i] = cnt_left;
+			}
+			for (int i = BUCKETS - 1; i >= 0; i--)
+			{
+				if (buckets[i].num_prims)
+					run_right.enclose(buckets[i].bb);
+				cnt_right += buckets[i].num_prims;
+				right_bb[i] = run_right;
+				right_count[i] = cnt_right;
+			}
+
+			float parent_area = prim_bbox.surface_area();
+			if (parent_area <= EPS_F)
+				continue;
+
+			for (int i = 0; i < BUCKETS - 1; i++)
+			{
+				size_t lcount = left_count[i];
+				size_t rcount = right_count[i + 1];
+				if (lcount == 0 || rcount == 0)
+					continue;
+				float cost = (left_bb[i].surface_area() * float(lcount) +
+				              right_bb[i + 1].surface_area() * float(rcount)) / parent_area;
+				if (cost < best_cost)
+				{
+					best_cost = cost;
+					best_axis = axis;
+					best_split_bucket = i;
+				}
+			}
+		}
+
+		if (best_axis == -1)
+		{
+			nodes[cur.node].l = nodes[cur.node].r = cur.node;
+			continue;
+		}
+
+		float cmin = centroid_bbox.min[best_axis];
+		float cmax = centroid_bbox.max[best_axis];
+		auto split_it = std::partition(primitives.begin() + static_cast<std::ptrdiff_t>(start),
+		                               primitives.begin() + static_cast<std::ptrdiff_t>(end),
+		                               [&](const Primitive& p) {
+				float c = p.bbox().center()[best_axis];
+				float rel = (c - cmin) / (cmax - cmin);
+				int b = std::min(BUCKETS - 1, std::max(0, static_cast<int>(rel * BUCKETS)));
+				return b <= best_split_bucket;
+			});
+
+		size_t mid = static_cast<size_t>(split_it - primitives.begin());
+		if (mid == start || mid == end)
+		{
+			mid = start + range / 2;
+			std::nth_element(primitives.begin() + static_cast<std::ptrdiff_t>(start),
+			                 primitives.begin() + static_cast<std::ptrdiff_t>(mid),
+			                 primitives.begin() + static_cast<std::ptrdiff_t>(end),
+			                 [&](const Primitive& a, const Primitive& b) {
+				return a.bbox().center()[best_axis] < b.bbox().center()[best_axis];
+			});
+		}
+
+		size_t lidx = new_node();
+		size_t ridx = new_node();
+		nodes[cur.node].l = lidx;
+		nodes[cur.node].r = ridx;
+
+		stack.emplace_back(mid, end - mid, ridx);
+		stack.emplace_back(start, mid - start, lidx);
+	}
 }
 
-template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const {
+template<typename Primitive> Trace BVH<Primitive>::hit(const Ray& ray) const
+{
 	//A3T3 - traverse your BVH
+	Trace ret;
+	if (nodes.empty())
+		return ret;
 
-    // Implement ray - BVH intersection test. A ray intersects
-    // with a BVH aggregate if and only if it intersects a primitive in
-    // the BVH that is not an aggregate.
+	float closest = ray.dist_bounds.y;
+	std::vector<size_t> stack;
+	stack.push_back(root_idx);
 
-    // The starter code simply iterates through all the primitives.
-    // Again, remember you can use hit() on any Primitive value.
+	while (!stack.empty())
+	{
+		size_t idx = stack.back();
+		stack.pop_back();
 
-	//TODO: replace this code with a more efficient traversal:
-    Trace ret;
-    for(const Primitive& prim : primitives) {
-        Trace hit = prim.hit(ray);
-        ret = Trace::min(ret, hit);
-    }
-    return ret;
+		const Node& node = nodes[idx];
+		Vec2 node_times(ray.dist_bounds.x, closest);
+		if (!node.bbox.hit(ray, node_times))
+			continue;
+
+		if (node.is_leaf())
+		{
+			for (size_t i = node.start; i < node.start + node.size; i++)
+			{
+				Ray local(ray.point, ray.dir, Vec2(ray.dist_bounds.x, closest), ray.depth);
+				Trace h = primitives[i].hit(local);
+				if (h.hit && h.distance < closest)
+				{
+					closest = h.distance;
+					ret = h;
+				}
+			}
+			continue;
+		}
+
+		Vec2 ltimes(ray.dist_bounds.x, closest), rtimes(ray.dist_bounds.x, closest);
+		bool lhit = nodes[node.l].bbox.hit(ray, ltimes);
+		bool rhit = nodes[node.r].bbox.hit(ray, rtimes);
+
+		if (lhit && rhit)
+		{
+			if (ltimes.x < rtimes.x)
+			{
+				stack.push_back(node.r);
+				stack.push_back(node.l);
+			}
+			else
+			{
+				stack.push_back(node.l);
+				stack.push_back(node.r);
+			}
+		}
+		else if (lhit)
+			stack.push_back(node.l);
+		else if (rhit)
+			stack.push_back(node.r);
+	}
+
+	return ret;
 }
 
 template<typename Primitive>

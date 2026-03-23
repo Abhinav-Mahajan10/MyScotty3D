@@ -58,3 +58,13 @@ Test test_a3_task2_triangle_hit_simple_uv("a3.task2.triangle.hit.simple.uv", [](
 		throw Test::error("Trace does not match expected: " + diff.value());
 	}
 });
+
+Test test_a3_task2_triangle_hit_outside_miss("a3.task2.triangle.hit.outside_miss", []() {
+	Ray ray = Ray(Vec3(0.9f, 0.9f, -1.0f), Vec3(0, 0, 1));
+	PT::Trace ret =
+		try_intersect(Vec3(0, 0, 0), Vec3(1, 0, 0), Vec3(0, 1, 0), Vec3(0, 0, 1), Vec3(0, 0, 1), Vec3(0, 0, 1), ray);
+	if (ret.hit)
+	{
+		throw Test::error("Triangle incorrectly reported hit for outside barycentric point.");
+	}
+});

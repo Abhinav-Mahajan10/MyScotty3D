@@ -25,16 +25,33 @@ std::pair<Ray, float> Camera::sample_ray(RNG &rng, uint32_t px, uint32_t py) {
 	float offset_pdf = s.pdf(offset);
 	Vec2 sensor_pixel = Vec2(float(px), float(py)) + offset;
 
-	//TODO: Transform from sensor pixels into world position on the sensor plane
-	(void)sensor_pixel;
+	float h = 2.0f * std::tan(Radians(vertical_fov) * 0.5f);
+	float w = aspect_ratio * h;
+	float sx = (sensor_pixel.x / float(film.width) - 0.5f) * w;
+	float sy = (sensor_pixel.y / float(film.height) - 0.5f) * h;
+	Vec3 sensor_pos = Vec3(sx, sy, -1.0f) * focal_dist;
 
-	//Build ray:
 	Ray ray;
-	ray.point = Vec3(); //ray should start at the origin
-	ray.dir = Vec3(0,0,-1); //TODO: compute from sensor plane position
-	ray.depth = film.max_ray_depth; //rays should, by default, go as deep as the max depth parameter allows
-	
-   	return {ray, offset_pdf};
+	ray.point = Vec3();
+	if (aperture_size > 0.0f)
+	{
+		if (aperture_shape == 2)
+		{
+			Samplers::Circle aperture(Vec2(0.0f), aperture_size * 0.5f);
+			Vec2 o = aperture.sample(rng);
+			ray.point = Vec3(o.x, o.y, 0.0f);
+		}
+		else
+		{
+			Samplers::Rect aperture{Vec2(aperture_size)};
+			Vec2 o = aperture.sample(rng) - Vec2(aperture_size * 0.5f);
+			ray.point = Vec3(o.x, o.y, 0.0f);
+		}
+	}
+	ray.dir = (sensor_pos - ray.point).unit();
+	ray.depth = film.max_ray_depth;
+
+	return {ray, offset_pdf};
 }
 
 

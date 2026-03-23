@@ -51,3 +51,23 @@ Test test_a3_task3_bbox_hit_simple_dist_bounds("a3.task3.bbox.hit.simple_dist_bo
 		throw Test::error("BBox detected hits when it shouldn't have because of the dist_bounds!");
 	}
 });
+
+Test test_a3_task3_bbox_hit_parallel_slab_cases("a3.task3.bbox.hit.parallel_slab_cases", []() {
+	std::vector<Vec3> verts;
+	verts.push_back(Vec3(0, 0, 0));
+	verts.push_back(Vec3(1, 1, 1));
+
+	Vec2 times_in(0.0f, FLT_MAX);
+	Ray ray_in(Vec3(0.5f, 0.5f, -1.0f), Vec3(0.0f, 0.0f, 1.0f));
+	if (!try_intersect(verts, ray_in, times_in))
+	{
+		throw Test::error("Parallel slab in-range ray should hit.");
+	}
+
+	Vec2 times_out(0.0f, FLT_MAX);
+	Ray ray_out(Vec3(2.0f, 0.5f, -1.0f), Vec3(0.0f, 0.0f, 1.0f));
+	if (try_intersect(verts, ray_out, times_out))
+	{
+		throw Test::error("Parallel slab out-of-range ray should miss.");
+	}
+});
