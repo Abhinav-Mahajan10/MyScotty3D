@@ -101,6 +101,8 @@ struct Image {
 
 	uint32_t w = 0, h = 0;
 	std::vector<float> _pdf, _cdf;
+	std::vector<float> _alias_prob;
+	std::vector<uint32_t> _alias_alt;
 	Rect jitter;
 };
 

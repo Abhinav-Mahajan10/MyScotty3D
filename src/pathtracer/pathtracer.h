@@ -24,6 +24,8 @@ public:
 		Vec3 pos, out_dir, normal;
 		Vec2 uv;
 		uint32_t depth = 0;
+		Spectrum throughput = Spectrum(1.0f, 1.0f, 1.0f);
+		uint32_t max_ray_depth = 1;
 	};
 	struct Ray_Log {
 		Ray ray;

@@ -2,14 +2,6 @@
 
 AndrewID: abhinavm
 
-(##) About this template
-
-* You can view your writeup by opening it in a browser - right click this file and open with your browser of choice.
-
-* Replace reference images with your own screenshots or renders when applicable.
-
-* Include descriptions of any encountered problems and the time you spent on each task.
-
 (##) A3T1 CHECKPOINT
 
 You do not need any screenshots for this task. 
@@ -95,12 +87,36 @@ You do not need any screenshots for this task.
 Your completion will be graded based on the reference `test.a3.task4.*.cpp` files and 
 checking that rendering lambertian materials look correct.
 
+<font size="10"> IMPLEMENTED </font>
+
+Implemented Lambertian BSDF and path tracing hooks in `material.cpp` and `pathtracer.cpp`:
+
+- `Lambertian::evaluate`, `scatter`, and `pdf`: cosine-weighted hemisphere sampling with PDF consistent with evaluation (albedo over pi times max cosine term; y-up normals).
+- `sample_direct_lighting_task4`: sample BSDF direction, transform to world space, trace a shadow ray for emitted light only, weight by inverse PDF for non-specular materials and by attenuation alone for specular.
+- `sample_indirect_lighting`: one indirect bounce with the same weighting; Russian roulette after a minimum bounce count to unbiasedly shorten paths, using `Ray::throughput` for cumulative weight. Constants `RR_MIN_BOUNCES` and `RR_P_MIN` are in `pathtracer.cpp`.
+
+- Verified with GUI (path-traced Lambertian scenes), All relevant tests passed: `a3.task4.*` and Added test cases:
+  - `a3.task4.bsdf.lambertian.pdf.lower_hemisphere`
+  - `a3.task4.bsdf.lambertian.evaluate.grazing`
+
 (##) A3T5 FINAL
 
 You do not need any screenshots for this task. 
 
 Your completion will be graded based on the reference `test.a3.task5.*.cpp` files and 
 checking that rendering mirror, refract and glass materials look correct.
+
+<font size="10"> IMPLEMENTED </font>
+
+Implemented helpers and specular materials in `material.cpp`:
+
+- `reflect` and `refract` for a flat normal (0,1,0): Snell's law, total internal reflection flagged via `was_internal`, plus `schlick` Fresnel.
+- `Mirror::scatter` reflects the outgoing direction with reflectance texture.
+- `Refract::scatter` and `Glass::scatter`: handle entering and leaving the medium, correct transmittance scaling across the interface, glass uses Schlick and a random choice between reflect and refract with TIR falling back to reflection.
+
+A parameterized microfacet-style BSDF was not added because it would need a new `Material` variant and changes to the scene file format and GUI beyond the five core types.
+
+- Verified with GUI (mirror, refractive, and glass objects), All relevant tests passed: `a3.task5.*`.
 
 (##) A3T6 FINAL
 
@@ -109,12 +125,32 @@ You do not need any screenshots for this task.
 Your completion will be graded based on the reference `test.a3.task6.*.cpp` files and 
 checking that there is an improvement between using task 4 direct lighting and using task 6 direct lighting.
 
+<font size="10"> IMPLEMENTED </font>
+
+Implemented mixture direct lighting in `sample_direct_lighting_task6` in `pathtracer.cpp`:
+
+- For non-specular materials, half the time sample the BSDF and half the time sample a direction toward emissive geometry via `sample_area_lights`; combine BSDF value and emitted radiance using the mixture PDF (average of BSDF PDF and area-light PDF). Specular materials use the same direct path as task 4.
+- `BVH::pdf` in `bvh.cpp` evaluates the same average triangle PDF as a linear scan, but skips subtrees whose bounding boxes do not intersect the query ray (faster on large meshes).
+
+- Verified with GUI (path-traced scenes with emissive meshes; compared task 4 vs task 6 direct lighting). There is no `test.a3.task6.*` in this repository; all relevant tests passed: `a3.task4.*`, `a3.task5.*`.
+
 (##) A3T7 FINAL
 
 You do not need any screenshots for this task. 
 
-Your completion will be graded based on the reference `test.a1.task7.*.cpp` file and 
+Your completion will be graded based on the reference `test.a3.task7.*.cpp` files and 
 checking that rendering scenes with environment lighting yields correct sampling.
+
+<font size="10"> IMPLEMENTED </font>
+
+Implemented environment map sampling in `samplers.cpp`:
+
+- `Sphere::Uniform::sample` and `pdf`: uniform directions on the unit sphere (inverse-area PDF).
+- `Sphere::Image`: per-texel weights proportional to luminance times sine of polar angle; build normalized `_pdf` and `_cdf`, sample by drawing a uniform variate and `std::upper_bound` on the CDF. Optional Vose alias tables (`USE_ALIAS_ENV_SAMPLER`) draw from the same discrete distribution in O(1) time; set to `false` to use CDF inversion only.
+- `Sphere::Image::pdf`: map direction to UV, look up discrete cell probability, and apply the Jacobian from texture coordinates to solid angle on the sphere.
+
+- Verified with GUI (HDR environment lighting, importance vs uniform sampling), All relevant tests passed: `a3.task7.*` and Added test cases:
+  - `a3.task7.sphere.uniform.norm`
 
 (##) RENDERED IMAGE FINAL
 
@@ -130,13 +166,33 @@ Any free model sources you need to credit?
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
 
+Claude 4.6 Sonnet
+
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
+
+Debugging for Path Tracing and Direct Lighting, was getting incorrect results with the GUI and it was very tricky to debug task6. It was also helpful in refining the structuring of the writeup
 
 What was it good at? What was it bad at?
 
+It was good at finding bugs in my code, it also found a bug in my BVH implementation too, funnily enough. 
+It was helpful in making my points concise in the writeup and making a table of the extra test cases.
+
 (##) EXTRA CREDIT FINAL
 
-Use this section to explain any extra credit implementations you have made.
+- **T4:** Russian roulette path termination (see A3T4); `Ray::throughput` field.
+- **T5:** Advanced BSDF (Blinn-Phong / GGX / Disney) not implemented—would require new `Material` variant and `s3ds::Material` / GUI plumbing.
+- **T6:** BVH-accelerated `pdf` for triangle meshes (emissive area-light PDF queries).
+- **T7:** Alias-method env map sampling via `USE_ALIAS_ENV_SAMPLER` in `src/pathtracer/samplers.cpp` (same distribution as CDF inversion)
+
+**Additional automated tests added:**
+
+| File | Test name |
+|------|-----------|
+| `tests/a3/test.a3.task4.bsdf.lambertian.cpp` | `a3.task4.bsdf.lambertian.pdf.lower_hemisphere` |
+| `tests/a3/test.a3.task4.bsdf.lambertian.cpp` | `a3.task4.bsdf.lambertian.evaluate.grazing` |
+| `tests/a3/test.a3.task7.sphere.uniform.cpp` | `a3.task7.sphere.uniform.norm` |
+
+(Extra tests are also listed under A3T2, A3T3, A3T4, and A3T7 above.)
 
 (##) Feedback
 

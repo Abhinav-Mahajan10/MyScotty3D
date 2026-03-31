@@ -44,6 +44,8 @@ struct Ray {
 	/// Recursive depth of ray
 	uint32_t depth = 0;
 
+	Spectrum throughput = Spectrum(1.0f, 1.0f, 1.0f);
+
 	/// The minimum and maximum distance at which this ray can encounter collisions
 	Vec2 dist_bounds = Vec2(0.0f, std::numeric_limits<float>::infinity());
 };

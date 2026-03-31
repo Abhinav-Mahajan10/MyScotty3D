@@ -8,6 +8,7 @@
 #include <array>
 #include <limits>
 #include <stack>
+#include <vector>
 
 namespace PT {
 
@@ -265,11 +266,43 @@ template<typename Primitive> Vec3 BVH<Primitive>::sample(RNG &rng, Vec3 from) co
 }
 
 template<typename Primitive>
-float BVH<Primitive>::pdf(Ray ray, const Mat4& T, const Mat4& iT) const {
-	if (primitives.empty()) return 0.0f;
+float BVH<Primitive>::pdf(Ray ray, const Mat4& T, const Mat4& iT) const
+{
+	if (primitives.empty())
+	{
+		return 0.0f;
+	}
 	float ret = 0.0f;
-	for (auto& prim : primitives) ret += prim.pdf(ray, T, iT);
-	return ret / primitives.size();
+
+	Ray traversal_ray = ray;
+	traversal_ray.transform(iT);
+
+	std::vector<size_t> stack;
+	stack.push_back(root_idx);
+	while (!stack.empty())
+	{
+		size_t idx = stack.back();
+		stack.pop_back();
+		const Node& node = nodes[idx];
+		Vec2 hit_bounds(traversal_ray.dist_bounds.x, traversal_ray.dist_bounds.y);
+		if (!node.bbox.hit(traversal_ray, hit_bounds))
+		{
+			continue;
+		}
+		if (node.is_leaf())
+		{
+			for (size_t i = node.start; i < node.start + node.size; i++)
+			{
+				ret += primitives[i].pdf(ray, T, iT);
+			}
+		}
+		else
+		{
+			stack.push_back(node.r);
+			stack.push_back(node.l);
+		}
+	}
+	return ret / float(primitives.size());
 }
 
 template<typename Primitive> void BVH<Primitive>::clear() {
