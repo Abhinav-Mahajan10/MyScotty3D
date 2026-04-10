@@ -1,8 +1,6 @@
 #include "test.h"
 #include "geometry/spline.h"
 
-// Extra coverage: edge cases and mirroring not exercised by the reference tests.
-
 Test test_a4_task1_spline_empty("a4.task1.spline.extra.empty", []()
 {
 	Spline<Vec3> s;
@@ -46,7 +44,6 @@ Test test_a4_task1_spline_clamp_ends("a4.task1.spline.extra.clamp_ends", []()
 
 Test test_a4_task1_spline_two_knots_linear_mid("a4.task1.spline.extra.two_knots_mid", []()
 {
-	// Mirrored Catmull-Rom through (0,0) and (1,1) should match a straight line at u=0.5.
 	Spline<float> s;
 	s.set(0.0f, 0.0f);
 	s.set(1.0f, 1.0f);
@@ -74,8 +71,6 @@ Test test_a4_task1_cubic_unit_endpoints("a4.task1.spline.extra.cubic_endpoints",
 	}
 });
 
-// Catmull-Rom through collinear, equally-spaced knots must give linear interpolation.
-// This validates that the tangent scaling (m * span) is correctly applied.
 Test test_a4_task1_spline_collinear_linear("a4.task1.spline.extra.collinear_linear", []()
 {
 	Spline<float> s;
@@ -84,8 +79,8 @@ Test test_a4_task1_spline_collinear_linear("a4.task1.spline.extra.collinear_line
 	s.set(2.0f, 2.0f);
 	for (int i = 1; i <= 9; ++i)
 	{
-		float t = i * 0.1f;        // sample inside [0, 2]
-		float expected = t;        // must be linear
+		float t = i * 0.1f;
+		float expected = t;
 		float actual = s.at(t);
 		if (Test::differs(actual, expected))
 		{
@@ -96,14 +91,12 @@ Test test_a4_task1_spline_collinear_linear("a4.task1.spline.extra.collinear_line
 	}
 });
 
-// Tangent scaling: a two-segment spline with non-unit spacing should still hit knot values.
 Test test_a4_task1_spline_knot_hit_nonuniform("a4.task1.spline.extra.knot_hit_nonuniform", []()
 {
 	Spline<float> s;
 	s.set(0.0f,  1.0f);
 	s.set(2.0f,  3.0f);
 	s.set(10.0f, 5.0f);
-	// Knot values must be reproduced exactly.
 	if (Test::differs(s.at(0.0f),  1.0f)) throw Test::error("Should hit first knot");
 	if (Test::differs(s.at(2.0f),  3.0f)) throw Test::error("Should hit middle knot");
 	if (Test::differs(s.at(10.0f), 5.0f)) throw Test::error("Should hit last knot");

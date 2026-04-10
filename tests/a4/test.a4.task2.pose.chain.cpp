@@ -1,8 +1,6 @@
 #include "test.h"
 #include "scene/skeleton.h"
 
-// Three-bone chain in bind pose: checks cumulative translation ordering.
-
 Test test_a4_task2_pose_bind_chain("a4.task2.pose.bind.chain", []()
 {
 	Skeleton sk;
@@ -47,8 +45,6 @@ Test test_a4_task2_base_offset_current("a4.task2.pose.current.base_offset", []()
 	}
 });
 
-// bind_pose with multiple children from the same parent.
-// Both children share the parent's tip position as their origin.
 Test test_a4_task2_bind_multi_child("a4.task2.pose.bind.multi_child", []()
 {
 	Skeleton sk;
@@ -60,7 +56,6 @@ Test test_a4_task2_bind_multi_child("a4.task2.pose.bind.multi_child", []()
 
 	std::vector<Mat4> B = sk.bind_pose();
 
-	// Both children should originate at the root's tip, i.e. (1,0,0).
 	Vec3 oA = B[childA] * Vec3(0.0f, 0.0f, 0.0f);
 	Vec3 oB = B[childB] * Vec3(0.0f, 0.0f, 0.0f);
 	if (Test::differs(oA, Vec3(1.0f, 0.0f, 0.0f)))
@@ -73,7 +68,6 @@ Test test_a4_task2_bind_multi_child("a4.task2.pose.bind.multi_child", []()
 	}
 });
 
-// solve_ik must not modify base_offset.
 Test test_a4_task2_ik_base_offset_unchanged("a4.task2.step_ik.base_offset_unchanged", []()
 {
 	Skeleton sk;

@@ -176,8 +176,21 @@ bool Skeleton::solve_ik(uint32_t steps) {
 	//if at a local minimum (e.g., gradient is near-zero), return 'true'.
 	//if run through all steps, return `false`.
 
-	const float tau = 0.35f;
 	const float grad_eps = 1.0e-4f;
+
+	auto compute_cost = [&]() -> float
+	{
+		std::vector< Mat4 > pose = current_pose();
+		float cost = 0.0f;
+		for (Handle const &h : handles)
+		{
+			if (!h.enabled) continue;
+			Vec3 tip = pose[h.bone] * bones[h.bone].extent;
+			Vec3 err = tip - h.target;
+			cost += 0.5f * dot(err, err);
+		}
+		return cost;
+	};
 
 	for (uint32_t s = 0; s < steps; ++s)
 	{
@@ -192,9 +205,37 @@ bool Skeleton::solve_ik(uint32_t steps) {
 			return true;
 		}
 
+		float f0 = compute_cost();
+
+		std::vector< Vec3 > saved(bones.size());
 		for (uint32_t bi = 0; bi < bones.size(); ++bi)
 		{
-			bones[bi].pose -= tau * grad[bi];
+			saved[bi] = bones[bi].pose;
+		}
+
+		float tau = 1.0f;
+		bool accepted = false;
+		for (int ls = 0; ls < 32; ++ls)
+		{
+			for (uint32_t bi = 0; bi < bones.size(); ++bi)
+			{
+				bones[bi].pose = saved[bi] - tau * grad[bi];
+			}
+			if (compute_cost() < f0)
+			{
+				accepted = true;
+				break;
+			}
+			tau *= 0.5f;
+		}
+
+		if (!accepted)
+		{
+			for (uint32_t bi = 0; bi < bones.size(); ++bi)
+			{
+				bones[bi].pose = saved[bi];
+			}
+			return true;
 		}
 	}
 
