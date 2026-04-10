@@ -45,10 +45,19 @@ std::vector< Mat4 > Skeleton::bind_pose() const {
 
 	//NOTE: bones is guaranteed to be ordered such that parents appear before child bones.
 
-	for (auto const &bone : bones) {
+	for (uint32_t bi = 0; bi < bones.size(); ++bi)
+	{
+		auto const &bone = bones[bi];
 		(void)bone; //avoid complaints about unused bone
 		//placeholder -- your code should actually compute the correct transform:
-		bind.emplace_back(Mat4::I);
+		if (bone.parent == -1U)
+		{
+			bind.push_back(Mat4::translate(base));
+		}
+		else
+		{
+			bind.push_back(bind[bone.parent] * Mat4::translate(bones[bone.parent].extent));
+		}
 	}
 
 	assert(bind.size() == bones.size()); //should have a transform for every bone.
@@ -67,8 +76,27 @@ std::vector< Mat4 > Skeleton::current_pose() const {
 	//Bone::compute_rotation_axes() will tell you what axes (in local bone space) Bone::pose should rotate around.
 	//Mat4::angle_axis(angle, axis) will produce a matrix that rotates angle (in degrees) around a given axis.
 
-	return std::vector< Mat4 >(bones.size(), Mat4::I);
+	std::vector< Mat4 > pose;
+	pose.reserve(bones.size());
 
+	for (uint32_t bi = 0; bi < bones.size(); ++bi)
+	{
+		auto const &bone = bones[bi];
+		Vec3 ax, ay, az;
+		bone.compute_rotation_axes(&ax, &ay, &az);
+		Mat4 R = Mat4::angle_axis(bone.pose.z, az) * Mat4::angle_axis(bone.pose.y, ay) *
+		         Mat4::angle_axis(bone.pose.x, ax);
+		if (bone.parent == -1U)
+		{
+			pose.push_back(Mat4::translate(base + base_offset) * R);
+		}
+		else
+		{
+			pose.push_back(pose[bone.parent] * Mat4::translate(bones[bone.parent].extent) * R);
+		}
+	}
+
+	return pose;
 }
 
 std::vector< Vec3 > Skeleton::gradient_in_current_pose() const {
@@ -82,6 +110,57 @@ std::vector< Vec3 > Skeleton::gradient_in_current_pose() const {
 	//TODO: loop over handles and over bones in the chain leading to the handle, accumulating gradient contributions.
 	//remember bone.compute_rotation_axes() -- should be useful here, too!
 
+	std::vector< Mat4 > pose = current_pose();
+
+	for (Handle const &handle : handles)
+	{
+		if (!handle.enabled)
+		{
+			continue;
+		}
+		BoneIndex hi = handle.bone;
+		Vec3 tip = pose[hi] * bones[hi].extent;
+		Vec3 err = tip - handle.target;
+
+		for (BoneIndex b = hi; b != -1U; b = bones[b].parent)
+		{
+			Bone const &bone = bones[b];
+			Vec3 ax, ay, az;
+			bone.compute_rotation_axes(&ax, &ay, &az);
+			Mat4 R_x = Mat4::angle_axis(bone.pose.x, ax);
+			Mat4 R_y = Mat4::angle_axis(bone.pose.y, ay);
+			Mat4 R_z = Mat4::angle_axis(bone.pose.z, az);
+
+			Mat4 M_joint;
+			if (bone.parent == -1U)
+			{
+				M_joint = Mat4::translate(base + base_offset);
+			}
+			else
+			{
+				M_joint = pose[bone.parent] * Mat4::translate(bones[bone.parent].extent);
+			}
+
+			Vec3 r = M_joint * Vec3(0.0f, 0.0f, 0.0f);
+
+			Mat4 M_rx = M_joint * R_z * R_y * R_x;
+			Vec3 axis_rx = M_rx.rotate(Vec3(1.0f, 0.0f, 0.0f));
+			Vec3 d_rx = cross(axis_rx, tip - r);
+
+			Mat4 M_ry = M_joint * R_z * R_y;
+			Vec3 axis_ry = M_ry.rotate(Vec3(0.0f, 1.0f, 0.0f));
+			Vec3 d_ry = cross(axis_ry, tip - r);
+
+			Mat4 M_rz = M_joint * R_z;
+			Vec3 axis_rz = M_rz.rotate(Vec3(0.0f, 0.0f, 1.0f));
+			Vec3 d_rz = cross(axis_rz, tip - r);
+
+			gradient[b].x += dot(err, d_rx);
+			gradient[b].y += dot(err, d_ry);
+			gradient[b].z += dot(err, d_rz);
+		}
+	}
+
 	assert(gradient.size() == bones.size());
 	return gradient;
 }
@@ -90,12 +169,35 @@ bool Skeleton::solve_ik(uint32_t steps) {
 	//A4T2b - gradient descent
 	//check which handles are enabled
 	//run `steps` iterations
-	
+
 	//call gradient_in_current_pose() to compute d loss / d pose
 	//add ...
 
 	//if at a local minimum (e.g., gradient is near-zero), return 'true'.
 	//if run through all steps, return `false`.
+
+	const float tau = 0.35f;
+	const float grad_eps = 1.0e-4f;
+
+	for (uint32_t s = 0; s < steps; ++s)
+	{
+		std::vector< Vec3 > grad = gradient_in_current_pose();
+		float g2 = 0.0f;
+		for (Vec3 const &g : grad)
+		{
+			g2 += dot(g, g);
+		}
+		if (g2 < grad_eps * grad_eps)
+		{
+			return true;
+		}
+
+		for (uint32_t bi = 0; bi < bones.size(); ++bi)
+		{
+			bones[bi].pose -= tau * grad[bi];
+		}
+	}
+
 	return false;
 }
 

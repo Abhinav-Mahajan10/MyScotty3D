@@ -1,51 +1,120 @@
 **Assignment 4 Report**
 
-AndrewID: XXXX
-
-(##) About this template
-
-* You can view your writeup by opening it in a browser - right click this file and open with your browser of choice.
-
-* Replace reference images with your own screenshots or renders when applicable.
-
-* Include descriptions of any encountered problems and the time you spent on each task.
+AndrewID: abhinavm
 
 (##) A4T1 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a4.task1.cpp` file and 
-checking that the spline interpolation looks correct.
+A4T1a: Hermite Curve over the Unit Interval (`cubic_unit_spline`)
+
+Implemented the Hermite basis functions and combined them with endpoint/tangent data:
+
+- Compute $t$, $t^2$, $t^3$ locally.
+- Evaluate the four Hermite bases: $h_{00} = 2t^3 - 3t^2 + 1$, $h_{10} = t^3 - 2t^2 + t$, $h_{01} = -2t^3 + 3t^2$, $h_{11} = t^3 - t^2$.
+- Return $h_{00} \cdot p_0 + h_{10} \cdot m_0 + h_{01} \cdot p_1 + h_{11} \cdot m_1$.
+
+The function is templated and works for any type supporting scalar multiplication and addition (Vec2, Vec3, Vec4, float, etc.).
+
+A4T1b — Catmull-Rom Spline Evaluation (`at`)
+
+Implemented the full Catmull-Rom evaluation with all required edge-case handling:
+
+- **Empty / single knot / out-of-range clamping**: return default `T()`, single knot value, first/last knot value as appropriate.
+- **Four-knot window**: use `map::upper_bound` to locate the interval $[t_1, t_2)$, then step back/forward to obtain $t_0, t_1, t_2, t_3$.
+- **Mirror strategy**: when a virtual knot is needed on either side, reflect the neighbouring interval (e.g. $t_0 = t_1 - (t_2 - t_1)$, $p_0 = p_1 - (p_2 - p_1)$).
+- **Tangent computation and scaling**: $m_0 = (p_2 - p_0)/(t_2 - t_0)$, $m_1 = (p_3 - p_1)/(t_3 - t_1)$. Before passing to `cubic_unit_spline`, normalize time to $u \in [0,1]$ and scale tangents by `span = t2 - t1` to account for the change of variable (chain rule).
+
+My insight was that: `cubic_unit_spline` expects tangents in "unit-interval speed"; the physical tangent must be multiplied by `span` so that the slope at the knot matches the Catmull-Rom formula.
+
+All relevant tests passed: `a4.task1.*`. Additional tests added:
+- `a4.task1.spline.extra.collinear_linear` — verifies that linearly-placed, equally-spaced knots produce exact linear interpolation (validates tangent computation and scaling together).
+- `a4.task1.spline.extra.knot_hit_nonuniform` — verifies that knot values are reproduced exactly with non-uniform spacing.
 
 (##) A4T2 CHECKPOINT
 
-You do not need any screenshots for this task. 
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a4.task2.*.cpp` files and 
-checking that moving the bones works correctly and IK is functional.
+A4T2a - Forward Kinematics (`bind_pose` and `current_pose`)
+
+Both functions make a single left-to-right pass over the topologically-sorted `bones` array (parents always appear before children).
+
+*`bind_pose`*:
+- Root bone: $B_b = T_r$ (translate by `base`).
+- Child bone: $B_b = B_{\text{par}(b)} \times T_{e_{\text{par}(b)}}$ (compose parent's transform with translation by parent's extent).
+- No rotation — this is the zero-rotation bind pose.
+
+*`current_pose`*:
+- Rotation axes $x_b, y_b, z_b$ retrieved from `Bone::compute_rotation_axes`.
+- Local rotation matrix: $R = R_{rz_b @ z_b} \times R_{ry_b @ y_b} \times R_{rx_b @ x_b}$ (rightmost applied first).
+- Root bone: $P_b = T_{r+o} \times R$ where $o$ is `base_offset`.
+- Child bone: $P_b = P_{\text{par}(b)} \times T_{e_{\text{par}(b)}} \times R$.
+
+`Mat4::angle_axis` takes degrees, consistent with `Bone::pose` and `Bone::roll` both being in degrees.
+
+A4T2b — Inverse Kinematics (`gradient_in_current_pose` and `solve_ik`)
+
+*`gradient_in_current_pose`*:
+
+For each enabled IK handle (bone $i$, target $h$):
+1. Compute the tip position $p_i = P_i \times e_i$ in skeleton-local space.
+2. Walk the ancestor chain from bone $i$ up to the root.
+3. For each ancestor bone $b$, compute the base-of-rotation point $r = M_{\text{joint}} \times \mathbf{0}$ (where $M_{\text{joint}}$ is the transform up to but not including $b$'s own rotations).
+4. Compute the three rotation-axis directions in skeleton space using the geometric cross-product formula:
+   - $\partial/\partial rx_b$: axis $= (M_{\text{joint}} R_z R_y R_x).\text{rotate}(\hat{x})$, derivative $= \text{axis} \times (p_i - r)$.
+   - $\partial/\partial ry_b$: axis $= (M_{\text{joint}} R_z R_y).\text{rotate}(\hat{y})$, derivative $= \text{axis} \times (p_i - r)$.
+   - $\partial/\partial rz_b$: axis $= (M_{\text{joint}} R_z).\text{rotate}(\hat{z})$, derivative $= \text{axis} \times (p_i - r)$.
+5. Accumulate: `gradient[b] += dot(err, d_rx/ry/rz)` for each axis.
+
+Bones not in any handle's ancestor chain naturally receive zero gradient because the loop never visits them.
+
+*`solve_ik`*:
+
+Fixed-step gradient descent with $\tau = 0.35$ and early-exit when the total squared gradient norm drops below $\epsilon^2 = 10^{-8}$:
+
+```
+for s in 0..steps:
+    grad = gradient_in_current_pose()
+    if sum(||grad_b||^2) < eps^2: return true   // converged
+    for each bone b: pose[b] -= tau * grad[b]
+return false   // exhausted steps
+```
+
+`base_offset` is never modified during IK — only `Bone::pose` is updated.
+
+All relevant tests passed: `a4.task2.*`. Additional tests added:
+- `a4.task2.pose.bind.multi_child` — verifies that two children from the same parent both originate at the parent's tip.
+- `a4.task2.step_ik.base_offset_unchanged` — verifies `base_offset` is preserved after `solve_ik`.
 
 (##) GenAI Use CHECKPOINT
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
 
+Claude Sonnet 4.6
+
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
+
+Code debugging the gradient derivation, and refining the writeup.
 
 What was it good at? What was it bad at?
 
+Good at tracing through the gradient math symbolically (cross-product partial derivative formula) and catching the unit/radian mismatches which I was struggling with. 
+Also useful for the writeup conciseness. I just wrote down my points and I asked it to refine it and correct the symbols and formatting.
+
 (##) A4T3 FINAL
 
-You do not need any screenshots for this task. 
+You do not need any screenshots for this task.
 
-Your completion will be graded based on the reference `test.a4.task3.*.cpp` files and 
+Your completion will be graded based on the reference `test.a4.task3.*.cpp` files and
 checking that the skeleton moves correctly when the bones are moved.
 
 (##) A4T4 FINAL
 
 Do you want to use the reference A3T2 solutions for this task: ____ (yes/no)
 
-You do not need any screenshots for this task. 
+You do not need any screenshots for this task.
 
-Your completion will be graded based on the reference `test.a4.task4.*.cpp` files and 
+Your completion will be graded based on the reference `test.a4.task4.*.cpp` files and
 checking that particle simulation behaves correctly and does not go through any surface.
 
 (##) ANIMATED VIDEO FINAL
@@ -69,6 +138,15 @@ What was it good at? What was it bad at?
 (##) EXTRA CREDIT FINAL
 
 Use this section to explain any extra credit implementations you have made.
+
+(##) A4T1/T2 Additional Automated Tests
+
+| File | Test name | What it covers |
+|------|-----------|----------------|
+| `tests/a4/test.a4.task1.spline.extra.cpp` | `a4.task1.spline.extra.collinear_linear` | Catmull-Rom gives exact linear interpolation through collinear equally-spaced knots (validates tangent scaling by span) |
+| `tests/a4/test.a4.task1.spline.extra.cpp` | `a4.task1.spline.extra.knot_hit_nonuniform` | Knot values reproduced exactly with non-uniform spacing |
+| `tests/a4/test.a4.task2.pose.chain.cpp` | `a4.task2.pose.bind.multi_child` | Two children from the same parent both originate at the parent tip |
+| `tests/a4/test.a4.task2.pose.chain.cpp` | `a4.task2.step_ik.base_offset_unchanged` | `solve_ik` must not modify `base_offset` |
 
 (##) Feedback
 
