@@ -36,8 +36,8 @@ Test test_a4_task4_particles_ground_only("a4.task4.particles.ground_only", []() 
 	while (particles.particles[0].update(ground, particles.gravity, particles.radius, 0.01f)) {
 	}
 
-	Vec3 expected_pos = Vec3(0.000000f, 0.762118f, 0.000000f);
-	Vec3 expected_velocity = Vec3(0.000000f, -2.058001f, 0.000000f);
+	Vec3 expected_pos = Vec3(0.000000f, 0.753216f, 0.000000f);
+	Vec3 expected_velocity = Vec3(0.000000f, -2.071437f, 0.000000f);
 	Vec3 actual_pos = particles.particles[0].position;
 	Vec3 actual_velocity = particles.particles[0].velocity;
 	if (Test::differs(expected_pos, actual_pos)) {

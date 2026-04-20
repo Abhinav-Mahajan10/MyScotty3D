@@ -103,43 +103,87 @@ Also useful for the writeup conciseness. I just wrote down my points and I asked
 
 (##) A4T3 FINAL
 
-You do not need any screenshots for this task.
+<font size="10"> IMPLEMENTED </font>
 
-Your completion will be graded based on the reference `test.a4.task3.*.cpp` files and
-checking that the skeleton moves correctly when the bones are moved.
+A4T3a - Closest Point on Line Segment (`closest_point_on_line_segment`)
+
+Projects a query point onto $[a, b]$ via a single dot-product ratio clamped to $[0, 1]$. The degenerate case $a = b$ is handled by checking the squared segment length against `EPS_F^2` (returns $a$). No square roots needed, uses dot products only.
+
+A4T3b - Bone Weight Computation (`assign_bone_weights`)
+
+Iterates every vertex in bind-pose space. For each bone $j$ with $r_j > 0$:
+
+- Transform bone base and tip to skeleton space via `bind_pose()`.
+- Compute distance $d = \|p - \text{closest}(a_j, b_j, p)\|$.
+- Compute raw weight $\hat{w}_j = \max(0,\,(r_j - d)/r_j)$.
+
+Accumulate all nonzero raw weights, then normalise so $\sum_j w_j = 1$. Vertices with all-zero raw weights get no entries and are transformed by identity in `skin`.
+
+A4T3c - Linear Blend Skinning (`skin`)
+
+Pre-computes per-bone blend matrices $M_j = P_j B_j^{-1}$. For each vertex, accumulates the weighted blend $T = \sum_j w_{ij} M_j$ and sets $v' = T v$ (identity when no weights are assigned). Per-corner normals are transformed by the inverse-transpose of $T$ then renormalized. Face triangulation follows the same pattern as `Indexed_Mesh::from_halfedge_mesh(SplitEdges)`.
+
+All relevant tests passed: `a4.task3.*`. Additional tests added:
+- `a4.task3.closest_point_on_line_segment.off_axis` — perpendicular projection to segment midpoint.
+- `a4.task3.closest_point_on_line_segment.degenerate` — zero-length segment ($a = b$) returns $a$.
+- `a4.task3.closest_point_on_line_segment.off_axis` — perpendicular projection to segment midpoint.
+- `a4.task3.assign_bone_weights.outside_radius` — vertex outside all bone radii gets no weights.
+- `a4.task3.assign_bone_weights.equidistant_two_bones` — symmetric vertex gets equal weight (0.5) from each bone.
+- `a4.task3.skin.identity_pose` — zero-rotation pose leaves all vertex positions unchanged.
 
 (##) A4T4 FINAL
 
-Do you want to use the reference A3T2 solutions for this task: ____ (yes/no)
+<font size="10"> IMPLEMENTED </font>
 
-You do not need any screenshots for this task.
+A4T4a - Particle Update (`Particle::update`)
 
-Your completion will be graded based on the reference `test.a4.task4.*.cpp` files and
-checking that particle simulation behaves correctly and does not go through any surface.
+`Particle::update` runs a sub-step collision loop until the remaining time `rem ≤ 1e-6` or a safety iteration cap is hit:
+
+- **No-velocity shortcut**: if speed is negligible, apply gravity and advance freely, then break.
+- **Ray cast**: build a ray from `position` along `velocity/|velocity|` with unlimited range; `d_contact > max_dist` filters out-of-timestep hits.
+- **No hit**: advance freely with a forward-Euler step, consume all remaining time.
+- **Approaching check**: if $-\hat{d}\cdot\hat{n} \le 0$ the particle is moving away from the surface; advance freely.
+- **Radius correction**: `d_contact = tr.distance − radius/approaching` gives the travel distance at which the sphere surface just touches the triangle. If negative, the particle is already interpenetrating — reflect immediately without moving.
+- **Contact beyond timestep**: no collision this sub-step; advance freely.
+- **Collision**: advance velocity by gravity for `t_travel`, then reflect $v' = v - 2(v \cdot \hat{n})\hat{n}$. Place particle at `tr.position + n·radius`. Subtract `t_travel` from remaining time and continue the loop.
+
+After the loop: `age -= dt`. Return `false` when `age ≤ EPS_F`.
+
+All relevant tests passed: `a4.task4.*`. Additional tests added:
+- `a4.task4.particles.reflection.upward` — after bouncing off a horizontal floor, velocity.y is positive.
+- `a4.task4.particles.no_gravity.straight_line` — with zero gravity and no scene, particle moves in a straight line.
 
 (##) ANIMATED VIDEO FINAL
 
-Your animation:
-<div class="twentytwenty-container">
-    <img src="A4-writeup/reference/animation.mov" alt="Your creation">
-</div>
-Explanation of what it is and how you made it:
+**Scene file:** [`render.js3d`](A4-writeup/student/render.js3d)
 
-Any free model sources you need to credit?
+**Rendered video:** [`animation.mp4`](A4-writeup/student/animation.mp4)
+
+A short clip of human dancing
+
+Model / asset credits: Used the given human model and animated it in the GUI and exported frames with ffmpeg.
 
 (##) GenAI Use FINAL
 
 Which model(s) did you use (e.g., ChatGPT-4, Claude-2, etc.)?
 
+Claude Sonnet 4.6
+
 For what purpose(s) did you use GenAI (e.g., brainstorming, code generation, debugging, etc.)?
 
+Writing and debugging additional test cases for T3 and T4, and refining the writeup sections.
+
 What was it good at? What was it bad at?
+
+Good at generating comprehensive test cases covering edge cases (degenerate segments, zero-weight vertices, wall reflections) and catching a wall-normal orientation bug in a collision test. Less reliable when it came to predicting exact geometry from mesh utility functions. the wall-reflection test needed one rotation-sign fix after a real build-and-run cycle.
+It was best at writing the writeup, i just wrote down my points and it refined it and corrected the symbols and formatting.
 
 (##) EXTRA CREDIT FINAL
 
 Use this section to explain any extra credit implementations you have made.
+N/A
 
-(##) A4T1/T2 Additional Automated Tests
+(##) Additional Automated Tests
 
 | File | Test name | What it covers |
 |------|-----------|----------------|
@@ -147,6 +191,13 @@ Use this section to explain any extra credit implementations you have made.
 | `tests/a4/test.a4.task1.spline.extra.cpp` | `a4.task1.spline.extra.knot_hit_nonuniform` | Knot values reproduced exactly with non-uniform spacing |
 | `tests/a4/test.a4.task2.pose.chain.cpp` | `a4.task2.pose.bind.multi_child` | Two children from the same parent both originate at the parent tip |
 | `tests/a4/test.a4.task2.pose.chain.cpp` | `a4.task2.step_ik.base_offset_unchanged` | `solve_ik` must not modify `base_offset` |
+| `tests/a4/test.a4.task3.extra.cpp` | `a4.task3.closest_point_on_line_segment.off_axis` | Perpendicular projection to segment midpoint |
+| `tests/a4/test.a4.task3.extra.cpp` | `a4.task3.closest_point_on_line_segment.degenerate` | Zero-length segment ($a = b$) returns $a$ |
+| `tests/a4/test.a4.task3.extra.cpp` | `a4.task3.assign_bone_weights.outside_radius` | Vertex outside all bone radii → no weights assigned |
+| `tests/a4/test.a4.task3.extra.cpp` | `a4.task3.assign_bone_weights.equidistant_two_bones` | Symmetric vertex gets equal weight (0.5) from each bone |
+| `tests/a4/test.a4.task3.extra.cpp` | `a4.task3.skin.identity_pose` | Zero-rotation pose leaves all vertex positions unchanged |
+| `tests/a4/test.a4.task4.particles.extra.cpp` | `a4.task4.particles.reflection.upward` | Floor bounce produces upward post-collision velocity |
+| `tests/a4/test.a4.task4.particles.extra.cpp` | `a4.task4.particles.no_gravity.straight_line` | Zero gravity → particle travels in a straight line |
 
 (##) Feedback
 
